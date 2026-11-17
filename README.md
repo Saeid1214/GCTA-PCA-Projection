@@ -1,41 +1,32 @@
-# PCA Projection from Unrelated to Full Samples Using GCTA
+# GCTA PCA Projection
 
-Estimate principal components (PCs) in unrelated individuals and project them onto the full sample, including relatives. This reduces family-driven distortion of population structure estimates while retaining all individuals for downstream analyses.
+Estimate principal components (PCs) in an unrelated reference sample, then project the full sample—including related individuals—onto the same genetic axes. This reduces family-driven distortion of ancestry PCs while retaining samples for downstream analyses. **Projection does not account for relatedness in subsequent statistical models.**
 
 ## Requirements
 
-- [GCTA](https://yanglab.westlake.edu.cn/software/gcta/) (`gcta64`)
-- QC-filtered, LD-pruned autosomal genotypes in PLINK binary format (`.bed`, `.bim`, `.fam`):
-  - `full_merged_pruned_unrel`: unrelated reference sample
-  - `full_merged_pruned`: full sample, including relatives
-- Consistent SNP IDs, genome build, and allele coding across datasets.
+- [GCTA](https://yanglab.westlake.edu.cn/software/gcta/) (`gcta64` available on `PATH`)
+- QC-filtered, LD-pruned PLINK binary files (`.bed`, `.bim`, `.fam`) for unrelated reference and full target samples
+- Consistent genome build, SNP IDs, and allele coding across datasets
+
+## Run
+
+```bash
+bash pca_projection.sh full_merged_pruned_unrel full_merged_pruned 20
+```
+
+Arguments: `REFERENCE_PREFIX TARGET_PREFIX [NUMBER_OF_PCS]` (default: 20).
 
 ## Workflow
 
-```bash
-# 1. Build the GRM using unrelated individuals
-gcta64 --bfile full_merged_pruned_unrel \
-       --autosome --make-grm \
-       --out unrelated_grm
+1. Calculate the genetic relationship matrix (GRM) for unrelated individuals.
+2. Estimate reference PCs from the GRM.
+3. Calculate per-SNP PC loadings from the reference sample.
+4. Project the full sample onto the reference PC axes.
 
-# 2. Estimate 20 PCs from the unrelated sample
-gcta64 --grm unrelated_grm \
-       --pca 20 \
-       --out unrelated_pca
+Outputs are written to `results/`. The projected PC scores are in `results/full_projected.proj.eigenvec` (FID, IID, then projected PCs). The reference PCs are in `results/unrelated_pca.eigenvec`.
 
-# 3. Calculate SNP loadings for the reference PCs
-gcta64 --bfile full_merged_pruned_unrel \
-       --pc-loading unrelated_pca \
-       --out unrelated_snp_loading
+**Note:** Only SNPs shared by reference and target contribute to projection. Check the GCTA log for SNP overlap, allele handling, and quality-control warnings. The unrelated reference sample must already have been selected before running this script.
 
-# 4. Project all individuals onto the same PC axes
-gcta64 --bfile full_merged_pruned \
-       --project-loading unrelated_snp_loading 20 \
-       --out full_projected
-```
+## Reference
 
-**Output:** `full_projected.proj.eigenvec` contains the projected PC scores (with family and individual IDs). The reference PCs are in `unrelated_pca.eigenvec`.
-
-**Note:** Only SNPs shared between the reference and target datasets contribute to projection. Projected PCs account for population structure, but do not themselves model residual relatedness in downstream analyses.
-
-**Reference:** [GCTA documentation — PC loading and projection](https://yanglab.westlake.edu.cn/software/gcta/).
+[GCTA documentation — PC loading and projection](https://yanglab.westlake.edu.cn/software/gcta/#PCloadingandprojection)
